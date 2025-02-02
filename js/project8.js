@@ -48,7 +48,7 @@ const storyData = [
     text: "You decide to stay put. Hours pass, and the forest grows quiet. Eventually, you doze off...",
     choices: [
       { text: "Wake up later", nextScene: "followPath" },
-      { text: "Give up", nextScene: null } // an end
+      { text: "Give up", nextScene: null }
     ]
   },
   {
@@ -76,8 +76,97 @@ const storyData = [
     id: "trapdoor",
     text: "You open the trapdoor and discover a hidden cellar filled with old artifacts. One artifact glows with a strange light. You feel you've unlocked a secret. (End)",
     choices: []
+  },
+  {
+    id: "forestClearing",
+    text: "You reach a clearing with a strange stone altar at its center. The air hums with energy.",
+    choices: [
+      { text: "Inspect the altar", nextScene: "inspectAltar" },
+      { text: "Avoid it and continue walking", nextScene: "findCave" }
+    ]
+  },
+  {
+    id: "inspectAltar",
+    text: "The altar is covered in ancient runes. As you touch it, a vision of a forgotten past fills your mind.",
+    choices: [
+      { text: "Embrace the vision", nextScene: "visionPast" },
+      { text: "Pull your hand away", nextScene: "findCave" }
+    ]
+  },
+  {
+    id: "findCave",
+    text: "You come across a dark cave. Cold air drifts from within, hinting at unknown dangers.",
+    choices: [
+      { text: "Enter the cave", nextScene: "exploreCave" },
+      { text: "Camp outside", nextScene: "campNight" }
+    ]
+  },
+  {
+    id: "visionPast",
+    text: "The vision reveals a story of guardians who once protected the forest. They warn you of an ancient curse.",
+    choices: [
+      { text: "Heed their warning", nextScene: "returnPath" },
+      { text: "Dismiss it and move on", nextScene: "exploreCave" }
+    ]
+  },
+  {
+    id: "exploreCave",
+    text: "Inside the cave, you find strange markings and hear distant echoes. The path splits ahead.",
+    choices: [
+      { text: "Take the left path", nextScene: "leftPath" },
+      { text: "Take the right path", nextScene: "rightPath" }
+    ]
+  },
+  {
+    id: "campNight",
+    text: "You set up camp near the cave entrance. The night is peaceful, but you feel like something is watching you.",
+    choices: [
+      { text: "Investigate the feeling", nextScene: "ghostEncounter" },
+      { text: "Ignore it and sleep", nextScene: "morningDawn" }
+    ]
+  },
+  {
+    id: "ghostEncounter",
+    text: "A ghostly figure appears, warning you of the cave's dangers.",
+    choices: [
+      { text: "Listen to the ghost", nextScene: "returnPath" },
+      { text: "Challenge the ghost", nextScene: "battleGhost" }
+    ]
+  },
+  {
+    id: "morningDawn",
+    text: "You awaken to the sound of birds. The forest feels less menacing in the daylight.",
+    choices: [
+      { text: "Resume your journey", nextScene: "returnPath" },
+      { text: "Explore the surroundings", nextScene: "forestClearing" }
+    ]
+  },
+  {
+    id: "battleGhost",
+    text: "You face off with the ghost in a supernatural duel. It vanishes after a fierce struggle.",
+    choices: [
+      { text: "Press on into the cave", nextScene: "exploreCave" },
+      { text: "Retreat to safety", nextScene: "returnPath" }
+    ]
+  },
+  {
+    id: "leftPath",
+    text: "The left path leads you to an underground spring. You feel rejuvenated.",
+    choices: [
+      { text: "Rest by the spring", nextScene: "springRest" },
+      { text: "Continue deeper", nextScene: "hiddenChamber" }
+    ]
+  },
+  {
+    id: "rightPath",
+    text: "The right path leads to a dead end filled with strange carvings.",
+    choices: [
+      { text: "Examine the carvings", nextScene: "visionPast" },
+      { text: "Turn back", nextScene: "exploreCave" }
+    ]
   }
 ];
+
 
 /************************************************
  * 2. State & DOM Elements
@@ -116,7 +205,9 @@ function displayScene(sceneId) {
   if (!scene) return;
 
   // Mark scene as visited
-  visitedScenes.add(sceneId);
+  if (!visitedScenes.has(sceneId)) {
+    visitedScenes.add(sceneId);
+  }
 
   // Update text
   storyText.textContent = scene.text;
@@ -207,35 +298,52 @@ resetBtn.addEventListener("click", () => {
   displayScene("start");
 });
 
-// Reference to the path tree container
-const pathTree = document.getElementById('pathTree');
+// Reference to the story elements
+const sceneTextDisplay = document.getElementById('storyText');
+const sceneChoicesContainer = document.getElementById('choicesContainer');
+const scenePathTree = document.getElementById('pathTree');
 
-// Function to add a new path node
-function addPathNode(text, id) {
-  const node = document.createElement('div');
-  node.className = 'path-node hidden';
-  node.id = id;
-  node.textContent = text;
+// Track visited paths to avoid duplicates
+const visitedPaths = new Set();
 
-  // Add node to the tree
-  pathTree.appendChild(node);
+// Function to display a story scene
+function displayScene(sceneId) {
+    const scene = storyData.find(s => s.id === sceneId);
 
-  // Smooth reveal after adding
-  setTimeout(() => node.classList.remove('hidden'), 100);
+    // Update the story text
+    sceneTextDisplay.textContent = scene.text;
+
+    // Clear and update choices
+    sceneChoicesContainer.innerHTML = '';
+    scene.choices.forEach(choice => {
+        const button = document.createElement('button');
+        button.className = 'choice-btn';
+        button.textContent = choice.text;
+        button.onclick = () => {
+            if (choice.nextScene) {
+                addPathNode(sceneId, scene.text); // Add path node for navigation if new
+                displayScene(choice.nextScene);   // Navigate to the next scene
+            }
+        };
+        sceneChoicesContainer.appendChild(button);
+    });
 }
 
-// Example usage: Unlock new path nodes based on choices or events
-function onChoiceMade(choiceText) {
-  // Generate a unique ID for the new node (e.g., based on current time or story data)
-  const nodeId = `node-${Date.now()}`;
+// Function to add a path node if it hasn't been added yet
+function addPathNode(sceneId, text) {
+    if (visitedPaths.has(sceneId)) return;  // Prevent duplicates
 
-  // Add the new path node
-  addPathNode(choiceText, nodeId);
+    const node = document.createElement('div');
+    node.className = 'path-node visible';
+
+    const button = document.createElement('button');
+    button.textContent = text;
+    button.onclick = () => displayScene(sceneId); // Navigate back to this scene
+    node.appendChild(button);
+
+    scenePathTree.appendChild(node);
+    visitedPaths.add(sceneId);
 }
 
-// Simulate a choice event to demonstrate the function
-document.getElementById('choicesContainer').addEventListener('click', (event) => {
-  if (event.target.classList.contains('choice-btn')) {
-    onChoiceMade(event.target.textContent);
-  }
-});
+// Initial scene setup
+displayScene('start');
